@@ -1,9 +1,12 @@
 import datetime
+import logging
 
-from jose import jwt
+from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -29,8 +32,16 @@ def create_jwt_token(user_id: int, role: str) -> str:
 
 
 def decode_jwt_token(token: str) -> dict | None:
+    """解码 JWT 令牌，返回 payload 或 None（如果无效/过期）。"""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
         return payload
-    except jwt.JWTError:
+    except ExpiredSignatureError:
+        logger.debug("JWT token expired")
+        return None
+    except JWTError as e:
+        logger.debug(f"JWT token invalid: {e}")
+        return None
+    except Exception as e:
+        logger.warning(f"Unexpected error decoding JWT token: {e}")
         return None

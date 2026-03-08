@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +10,8 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_jwt_token
 from app.models.user import OAuthAccount, User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/oauth", tags=["oauth"])
 
@@ -169,19 +173,34 @@ async def google_callback(
             },
         )
         if token_resp.status_code != 200:
+            logger.error(f"Google token exchange failed: {token_resp.status_code}")
             raise HTTPException(status_code=400, detail="Google 授权失败")
 
-        tokens = token_resp.json()
+        try:
+            tokens = token_resp.json()
+        except Exception as e:
+            logger.error(f"Failed to parse Google token response: {e}")
+            raise HTTPException(status_code=500, detail="Google 授权响应解析失败")
+
+        access_token = tokens.get("access_token")
+        if not access_token:
+            logger.error("Google token response missing access_token")
+            raise HTTPException(status_code=400, detail="Google 授权失败")
 
         # 获取用户信息
         userinfo_resp = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         if userinfo_resp.status_code != 200:
+            logger.error(f"Google userinfo fetch failed: {userinfo_resp.status_code}")
             raise HTTPException(status_code=400, detail="获取 Google 用户信息失败")
 
-        userinfo = userinfo_resp.json()
+        try:
+            userinfo = userinfo_resp.json()
+        except Exception as e:
+            logger.error(f"Failed to parse Google userinfo response: {e}")
+            raise HTTPException(status_code=500, detail="Google 用户信息解析失败")
 
     email = userinfo.get("email", "")
     user = await _find_or_create_user(
@@ -232,11 +251,18 @@ async def github_callback(
             headers={"Accept": "application/json"},
         )
         if token_resp.status_code != 200:
+            logger.error(f"GitHub token exchange failed: {token_resp.status_code}")
             raise HTTPException(status_code=400, detail="GitHub 授权失败")
 
-        tokens = token_resp.json()
+        try:
+            tokens = token_resp.json()
+        except Exception as e:
+            logger.error(f"Failed to parse GitHub token response: {e}")
+            raise HTTPException(status_code=500, detail="GitHub 授权响应解析失败")
+
         access_token = tokens.get("access_token")
         if not access_token:
+            logger.error("GitHub token response missing access_token")
             raise HTTPException(status_code=400, detail="GitHub 授权失败")
 
         # 获取用户信息
@@ -244,18 +270,34 @@ async def github_callback(
             "https://api.github.com/user",
             headers={"Authorization": f"Bearer {access_token}"},
         )
-        github_user = user_resp.json()
+        if user_resp.status_code != 200:
+            logger.error(f"GitHub user fetch failed: {user_resp.status_code}")
+            raise HTTPException(status_code=400, detail="获取 GitHub 用户信息失败")
+
+        try:
+            github_user = user_resp.json()
+        except Exception as e:
+            logger.error(f"Failed to parse GitHub user response: {e}")
+            raise HTTPException(status_code=500, detail="GitHub 用户信息解析失败")
 
         # 获取主邮箱
         email_resp = await client.get(
             "https://api.github.com/user/emails",
             headers={"Authorization": f"Bearer {access_token}"},
         )
-        emails = email_resp.json()
-        primary_email = next(
-            (e["email"] for e in emails if e.get("primary")),
-            github_user.get("email", ""),
-        )
+        primary_email = ""
+        if email_resp.status_code == 200:
+            try:
+                emails = email_resp.json()
+                primary_email = next(
+                    (e["email"] for e in emails if e.get("primary")),
+                    github_user.get("email", ""),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to parse GitHub emails response: {e}")
+                primary_email = github_user.get("email", "")
+        else:
+            primary_email = github_user.get("email", "")
 
     github_username = github_user.get("login", "")
     is_admin = _is_admin_email(primary_email) or _is_admin_github(github_username)

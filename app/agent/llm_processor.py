@@ -1,5 +1,6 @@
 """LLM 夋试模块：用于摘要、评论和打标。"""
 
+import asyncio
 import json
 import logging
 
@@ -14,6 +15,39 @@ CATEGORIES = [
     "云计算", "网络安全", "区块链", "量子计算", "生物科技",
     "创业投资", "产品发布", "行业分析", "政策法规", "其他",
 ]
+
+# 重试配置
+MAX_RETRIES = 3
+RETRY_DELAY_BASE = 1.0  # 基础延迟（秒），使用指数退避
+
+
+async def _retry_with_backoff(coro_factory, max_retries: int = MAX_RETRIES, operation_name: str = "operation"):
+    """带指数退避的重试包装器。"""
+    last_exception = None
+    for attempt in range(max_retries):
+        try:
+            return await coro_factory()
+        except httpx.TimeoutException as e:
+            last_exception = e
+            delay = RETRY_DELAY_BASE * (2 ** attempt)
+            logger.warning(f"{operation_name} timeout (attempt {attempt + 1}/{max_retries}), retrying in {delay}s")
+            await asyncio.sleep(delay)
+        except httpx.HTTPStatusError as e:
+            # 4xx 错误不重试
+            if 400 <= e.response.status_code < 500:
+                raise
+            last_exception = e
+            delay = RETRY_DELAY_BASE * (2 ** attempt)
+            logger.warning(f"{operation_name} HTTP {e.response.status_code} (attempt {attempt + 1}/{max_retries}), retrying in {delay}s")
+            await asyncio.sleep(delay)
+        except httpx.RequestError as e:
+            last_exception = e
+            delay = RETRY_DELAY_BASE * (2 ** attempt)
+            logger.warning(f"{operation_name} request error (attempt {attempt + 1}/{max_retries}), retrying in {delay}s: {e}")
+            await asyncio.sleep(delay)
+
+    logger.error(f"{operation_name} failed after {max_retries} retries: {last_exception}")
+    raise last_exception if last_exception else Exception(f"{operation_name} failed")
 
 
 async def generate_summary(title: str, content: str) -> str:
@@ -33,7 +67,7 @@ async def generate_summary(title: str, content: str) -> str:
 - 客观概括核心信息
 - 不要添加个人观点"""
 
-    try:
+    async def _call_api():
         async with httpx.AsyncClient(timeout=60) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -47,6 +81,9 @@ async def generate_summary(title: str, content: str) -> str:
             )
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"].strip()
+
+    try:
+        return await _retry_with_backoff(_call_api, operation_name="Summary generation")
     except Exception as e:
         logger.error(f"摘要生成失败: {e}")
         return content[:200] if content else title
@@ -75,7 +112,7 @@ async def generate_commentary(title: str, content: str, summary: str) -> str:
 4. 语言风格：专业但易读，有深度但不晦涩
 5. 不要使用 Markdown 标题语法（不要用 # 号）"""
 
-    try:
+    async def _call_api():
         async with httpx.AsyncClient(timeout=120) as client:
             resp = await client.post(
                 "https://api.anthropic.com/v1/messages",
@@ -93,6 +130,9 @@ async def generate_commentary(title: str, content: str, summary: str) -> str:
             resp.raise_for_status()
             data = resp.json()
             return data["content"][0]["text"].strip()
+
+    try:
+        return await _retry_with_backoff(_call_api, operation_name="Commentary generation")
     except Exception as e:
         logger.error(f"评论生成失败: {e}")
         return ""
@@ -119,7 +159,7 @@ async def classify_article(title: str, summary: str) -> tuple[str, list[str]]:
 - tags 提供2-5个相关标签，使用中文
 - 只返回JSON，不要其他文字"""
 
-    try:
+    async def _call_api():
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 "https://api.openai.com/v1/chat/completions",
@@ -142,6 +182,9 @@ async def classify_article(title: str, summary: str) -> tuple[str, list[str]]:
             if category not in CATEGORIES:
                 category = "其他"
             return category, tags[:5]
+
+    try:
+        return await _retry_with_backoff(_call_api, operation_name="Classification")
     except Exception as e:
         logger.error(f"分类失败: {e}")
         return "其他", []

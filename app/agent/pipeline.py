@@ -1,5 +1,6 @@
 """Agent 流水线：收集 → 去重 → AI 处理 → 存储。"""
 
+import asyncio
 import logging
 import re
 import unicodedata
@@ -17,7 +18,9 @@ from app.models.news import AgentRun, NewsArticle, RssSource
 
 logger = logging.getLogger(__name__)
 
+# 使用锁保护全局状态，防止并发问题
 _running = False
+_lock = asyncio.Lock()
 
 
 def _slugify(text: str) -> str:
@@ -48,11 +51,14 @@ async def run_pipeline() -> None:
     """执行完整的 Agent 流水线。"""
     global _running
 
-    if _running:
-        logger.info("Pipeline already running, skipping")
-        return
+    # 使用锁保护并发访问
+    async with _lock:
+        if _running:
+            logger.info("Pipeline already running, skipping")
+            return
 
-    _running = True
+        _running = True
+
     logger.info("Agent pipeline started")
 
     async with async_session_factory() as db:
@@ -145,10 +151,17 @@ async def run_pipeline() -> None:
 
         except Exception as e:
             logger.error(f"Pipeline failed: {e}")
-            run.status = "failed"
-            run.error_log = str(e)
-            run.finished_at = datetime.now(timezone.utc)
-            await db.commit()
+            # 回滚事务，然后提交错误状态
+            await db.rollback()
+            # 重新创建会话来记录错误状态
+            async with async_session_factory() as error_db:
+                error_run = await error_db.get(AgentRun, run.id)
+                if error_run:
+                    error_run.status = "failed"
+                    error_run.error_log = str(e)
+                    error_run.finished_at = datetime.now(timezone.utc)
+                    await error_db.commit()
             raise
         finally:
-            _running = False
+            async with _lock:
+                _running = False

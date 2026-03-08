@@ -1,3 +1,4 @@
+import asyncio
 import re
 from collections import defaultdict
 from time import time
@@ -19,8 +20,9 @@ from app.schemas.comment import (
 
 router = APIRouter(tags=["comments"])
 
-# 评论的内存限流器
+# 评论的内存限流器 - 使用锁保护并发访问
 _comment_timestamps: dict[str, list[float]] = defaultdict(list)
+_comment_lock = asyncio.Lock()
 COMMENT_RATE_WINDOW = 60  # 1 minute
 COMMENT_RATE_LIMIT = 3
 
@@ -35,12 +37,20 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _check_comment_rate(ip: str) -> bool:
-    now = time()
-    timestamps = _comment_timestamps[ip]
-    # Remove expired entries
-    _comment_timestamps[ip] = [t for t in timestamps if now - t < COMMENT_RATE_WINDOW]
-    return len(_comment_timestamps[ip]) >= COMMENT_RATE_LIMIT
+async def _check_comment_rate(ip: str) -> bool:
+    """检查评论速率限制，使用锁保护并发访问。"""
+    async with _comment_lock:
+        now = time()
+        timestamps = _comment_timestamps[ip]
+        # Remove expired entries
+        _comment_timestamps[ip] = [t for t in timestamps if now - t < COMMENT_RATE_WINDOW]
+        return len(_comment_timestamps[ip]) >= COMMENT_RATE_LIMIT
+
+
+async def _record_comment_timestamp(ip: str) -> None:
+    """记录评论时间戳，使用锁保护并发访问。"""
+    async with _comment_lock:
+        _comment_timestamps[ip].append(time())
 
 
 def _is_spam(content: str) -> bool:
@@ -73,7 +83,7 @@ async def create_comment(
 ):
     # Rate limit check
     client_ip = _get_client_ip(request)
-    if _check_comment_rate(client_ip):
+    if await _check_comment_rate(client_ip):
         raise HTTPException(status_code=429, detail="操作过于频繁，请稍后再试")
 
     # Verify post exists
@@ -114,7 +124,7 @@ async def create_comment(
     await db.refresh(comment)
 
     # Record rate limit
-    _comment_timestamps[client_ip].append(time())
+    await _record_comment_timestamp(client_ip)
 
     return CommentResponse.model_validate(comment)
 
