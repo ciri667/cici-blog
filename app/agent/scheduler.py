@@ -10,12 +10,23 @@ logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-def _run_pipeline_sync():
+def _run_pipeline_sync() -> None:
     """从同步调度回调运行异步流水线的包装函数。"""
     from app.agent.pipeline import run_pipeline
 
-    loop = asyncio.get_event_loop()
-    loop.create_task(run_pipeline())
+    try:
+        # 尝试获取正在运行的事件循环
+        loop = asyncio.get_running_loop()
+        loop.create_task(run_pipeline())
+    except RuntimeError:
+        # 如果没有运行中的事件循环，创建一个新的
+        logger.warning("No running event loop, creating new one for pipeline")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(run_pipeline())
+        finally:
+            loop.close()
 
 
 def start_scheduler():

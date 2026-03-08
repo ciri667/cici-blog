@@ -1,6 +1,7 @@
 """Agent 管理 API：RSS 源管理、Agent 状态、手动触发。"""
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -17,6 +18,8 @@ from app.schemas.news import (
     RssSourceResponse,
     RssSourceUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/admin", tags=["agent-admin"])
 
@@ -113,11 +116,25 @@ async def agent_status(
 # --- 手动触发 ---
 
 
+def _handle_pipeline_error(task: asyncio.Task) -> None:
+    """处理 pipeline 任务的异常。"""
+    try:
+        exc = task.exception()
+        if exc:
+            logger.error(f"Pipeline task failed: {exc}", exc_info=True)
+    except asyncio.CancelledError:
+        logger.info("Pipeline task was cancelled")
+    except Exception as e:
+        logger.error(f"Error retrieving pipeline task exception: {e}")
+
+
 @router.post("/agent/trigger")
 async def trigger_pipeline(
     admin: User = Depends(require_admin),
 ):
     from app.agent.pipeline import run_pipeline
 
-    asyncio.create_task(run_pipeline())
+    task = asyncio.create_task(run_pipeline())
+    task.add_done_callback(_handle_pipeline_error)
+    logger.info(f"Agent pipeline triggered by admin user: {admin.email}")
     return {"message": "Agent pipeline triggered"}
