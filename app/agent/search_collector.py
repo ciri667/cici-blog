@@ -1,4 +1,4 @@
-"""Tavily Search API collector module."""
+"""Tavily 搜索 API 收集模块。"""
 
 import logging
 from datetime import datetime, timezone
@@ -19,7 +19,7 @@ SEARCH_KEYWORDS = [
     "open source AI",
 ]
 
-# Simple in-memory monthly counter (resets on restart; good enough for dev)
+# 節单的内存月度计数器（重启时重置；开发环境足够用）
 _monthly_calls = {"month": 0, "count": 0}
 MONTHLY_LIMIT = 900
 
@@ -41,7 +41,7 @@ def _record_call() -> None:
 
 
 async def search_tavily(keywords: list[str] | None = None) -> list[CollectedArticle]:
-    """Search for tech/AI news using Tavily API."""
+    """使用 Tavily API 搜索科技/AI 新闻。"""
     if not settings.TAVILY_API_KEY:
         logger.warning("Tavily API key not configured, skipping search")
         return []

@@ -5,7 +5,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 class CommentCreate(BaseModel):
     author_name: str | None = Field(None, max_length=100)
-    author_email: str | None = None  # validated manually for optional email
+    author_email: str | None = None  # 可选邮箱手动校验
     content: str = Field(..., min_length=1, max_length=5000)
 
 

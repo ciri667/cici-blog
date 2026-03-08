@@ -22,20 +22,20 @@ router = APIRouter(prefix="/posts", tags=["posts"])
 
 
 def _slugify(text: str) -> str:
-    """Generate a URL-friendly slug from a title.
+    """从标题生成 URL 友好的 slug。
 
-    Handles Chinese/CJK characters by transliterating to pinyin-like tokens,
-    and passes through Latin characters normally.
+    通过将中文/CJK 字符转换为拼音形式的 token 来处理，
+    并正常传递拉丁字符。
     """
     text = unicodedata.normalize("NFKC", text)
-    # Replace common separators with hyphens
+    # 将常见分隔符替换为连字符
     text = re.sub(r"[\s_/\\]+", "-", text)
-    # Keep word characters (letters, digits, CJK) and hyphens
+    # 保留单词字符（字母、数字、CJK）和连字符
     text = re.sub(r"[^\w\-]", "", text, flags=re.UNICODE)
-    # Collapse multiple hyphens
+    # 合并多个连字符
     text = re.sub(r"-{2,}", "-", text)
     text = text.strip("-").lower()
-    # Truncate to reasonable length
+    # 截断到合理长度
     if len(text) > 200:
         text = text[:200].rsplit("-", 1)[0]
     return text or "untitled"
@@ -55,7 +55,7 @@ async def _unique_slug(db: AsyncSession, base_slug: str, exclude_id: int | None 
         slug = f"{base_slug}-{suffix}"
 
 
-# --- Public endpoints ---
+# --- 公共端点 ---
 
 
 @router.get("", response_model=PostListResponse)
@@ -69,7 +69,7 @@ async def list_posts(
 ):
     query = select(BlogPost)
 
-    # By default public listing shows only published posts
+    # 默认公共列表只显示已发布的文章
     if status:
         query = query.where(BlogPost.status == status)
     else:
@@ -80,11 +80,11 @@ async def list_posts(
     if category:
         query = query.where(BlogPost.category == category)
 
-    # Count total
+    # 统计总数
     count_query = select(func.count()).select_from(query.subquery())
     total = (await db.execute(count_query)).scalar() or 0
 
-    # Fetch page
+    # 获取分页
     query = query.order_by(BlogPost.published_at.desc().nullslast(), BlogPost.created_at.desc())
     query = query.offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(query)
@@ -107,7 +107,7 @@ async def get_post(slug: str, db: AsyncSession = Depends(get_db)):
     return PostResponse.model_validate(post)
 
 
-# --- Admin endpoints ---
+# --- 管理端点 ---
 
 
 @router.post("", response_model=PostResponse, status_code=201)
@@ -152,7 +152,7 @@ async def update_post(
     for key, value in update_data.items():
         setattr(post, key, value)
 
-    # Set published_at when status changes to published
+    # 当状态变更为已发布时设置 published_at
     if data.status == "published" and post.published_at is None:
         post.published_at = datetime.now(timezone.utc)
 

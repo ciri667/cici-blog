@@ -3,7 +3,7 @@ import datetime
 from pydantic import BaseModel, Field
 
 
-# --- RSS Sources ---
+# --- RSS 源 ---
 
 class RssSourceCreate(BaseModel):
     name: str = Field(..., max_length=200)
@@ -31,7 +31,7 @@ class RssSourceResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
-# --- News Articles ---
+# --- 新闻文章 ---
 
 class NewsArticleResponse(BaseModel):
     id: int
@@ -79,7 +79,16 @@ class NewsStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(pending|published)$")
 
 
-# --- Agent Runs ---
+class NewsAdminUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=500)
+    summary: str | None = None
+    ai_commentary: str | None = None
+    category: str | None = Field(None, max_length=100)
+    tags: list[str] | None = None
+    status: str | None = Field(None, pattern="^(pending|published)$")
+
+
+# --- Agent 运行记录 ---
 
 class AgentRunResponse(BaseModel):
     id: int

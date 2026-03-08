@@ -17,7 +17,7 @@ export default function AdminPostsPage() {
       const data = await apiFetch<PostListResponse>(
         `/posts?page=${p}&page_size=20&status=draft`,
       );
-      // Also load published posts and merge
+      // 同时加载已发布的文章并合并
       const published = await apiFetch<PostListResponse>(
         `/posts?page=${p}&page_size=20&status=published`,
       );

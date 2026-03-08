@@ -1,4 +1,4 @@
-"""APScheduler configuration for periodic agent runs."""
+"""APScheduler 定时任务调度配置。"""
 
 import asyncio
 import logging
@@ -11,7 +11,7 @@ scheduler = AsyncIOScheduler()
 
 
 def _run_pipeline_sync():
-    """Wrapper to run async pipeline from sync scheduler callback."""
+    """从同步调度回调运行异步流水线的包装函数。"""
     from app.agent.pipeline import run_pipeline
 
     loop = asyncio.get_event_loop()
@@ -19,7 +19,7 @@ def _run_pipeline_sync():
 
 
 def start_scheduler():
-    """Start the APScheduler with agent pipeline job every 4 hours."""
+    """启动 APScheduler，每 4 小时运行一次 Agent 流水线。"""
     scheduler.add_job(
         _run_pipeline_sync,
         "interval",
@@ -32,7 +32,7 @@ def start_scheduler():
 
 
 def stop_scheduler():
-    """Stop the scheduler."""
+    """停止调度器。"""
     if scheduler.running:
         scheduler.shutdown()
         logger.info("Agent scheduler stopped")

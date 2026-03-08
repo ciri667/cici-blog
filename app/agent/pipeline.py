@@ -1,4 +1,4 @@
-"""Agent Pipeline: collect → deduplicate → AI process → store."""
+"""Agent 流水线：收集 → 去重 → AI 处理 → 存储。"""
 
 import logging
 import re
@@ -45,7 +45,7 @@ async def _unique_slug(db: AsyncSession, base_slug: str) -> str:
 
 
 async def run_pipeline() -> None:
-    """Execute the full agent pipeline."""
+    """执行完整的 Agent 流水线。"""
     global _running
 
     if _running:
@@ -56,14 +56,14 @@ async def run_pipeline() -> None:
     logger.info("Agent pipeline started")
 
     async with async_session_factory() as db:
-        # Create run record
+        # 创建运行记录
         run = AgentRun(status="running")
         db.add(run)
         await db.commit()
         await db.refresh(run)
 
         try:
-            # Stage 1: Collect from RSS
+            # 阶段 1：从 RSS 收集
             rss_result = await db.execute(
                 select(RssSource).where(RssSource.is_active == True)
             )
@@ -75,37 +75,37 @@ async def run_pipeline() -> None:
 
             rss_articles = await fetch_rss_feeds(source_dicts)
 
-            # Stage 1b: Collect from Tavily
+            # 阶段 1b：从 Tavily 收集
             search_articles = await search_tavily()
 
             all_articles = rss_articles + search_articles
             run.articles_found = len(all_articles)
             logger.info(f"Collected {len(all_articles)} total articles")
 
-            # Stage 2: Deduplicate
+            # 阶段 2：去重
             unique_articles = await deduplicate(all_articles, db)
 
-            # Stage 3 & 4: AI process and store
+            # 阶段 3 和 4：AI 处理并存储
             created_count = 0
             for article in unique_articles:
                 try:
                     article_content = article.summary or article.title
 
-                    # Generate summary
+                    # 生成摘要
                     summary = await generate_summary(article.title, article_content)
 
-                    # Generate commentary
+                    # 生成评论
                     commentary = await generate_commentary(
                         article.title, article_content, summary
                     )
 
-                    # Classify
+                    # 分类
                     category, tags = await classify_article(article.title, summary)
 
-                    # Generate slug
+                    # 生成 slug
                     slug = await _unique_slug(db, _slugify(article.title))
 
-                    # Store
+                    # 存储
                     news = NewsArticle(
                         title=article.title,
                         slug=slug,
@@ -127,7 +127,7 @@ async def run_pipeline() -> None:
                     logger.error(f"Failed to process article '{article.title[:50]}': {e}")
                     continue
 
-            # Update run record
+            # 更新运行记录
             run.articles_created = created_count
             run.status = "success"
             run.finished_at = datetime.now(timezone.utc)
@@ -138,7 +138,7 @@ async def run_pipeline() -> None:
                 f"{len(unique_articles)} unique, {created_count} created"
             )
 
-            # Update last_fetched_at for RSS sources
+            # 更新 RSS 源的最后获取时间
             for source in rss_sources:
                 source.last_fetched_at = datetime.now(timezone.utc)
             await db.commit()

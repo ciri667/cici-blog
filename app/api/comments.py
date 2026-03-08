@@ -19,12 +19,12 @@ from app.schemas.comment import (
 
 router = APIRouter(tags=["comments"])
 
-# Simple in-memory rate limiter for comments
+# 评论的内存限流器
 _comment_timestamps: dict[str, list[float]] = defaultdict(list)
 COMMENT_RATE_WINDOW = 60  # 1 minute
 COMMENT_RATE_LIMIT = 3
 
-# Basic sensitive word list (extend as needed)
+# 垃圾评论过滤的敏感词列表。
 SENSITIVE_WORDS: list[str] = []
 
 
@@ -60,7 +60,7 @@ def _validate_email(email: str) -> bool:
     return bool(re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email))
 
 
-# --- Public endpoints ---
+# --- 公共端点 ---
 
 
 @router.post("/posts/{post_id}/comments", response_model=CommentResponse, status_code=201)
@@ -133,7 +133,7 @@ async def list_post_comments(
     return [CommentResponse.model_validate(c) for c in comments]
 
 
-# --- Admin endpoints ---
+# --- 管理端点 ---
 
 
 @router.get("/admin/comments", response_model=CommentListResponse)

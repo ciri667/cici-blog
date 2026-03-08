@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.scheduler import start_scheduler, stop_scheduler
+from app.agent.bootstrap import seed_default_rss_sources
 from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
 from app.api.comments import router as comments_router
@@ -17,6 +18,7 @@ from app.core.config import settings
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await seed_default_rss_sources()
     start_scheduler()
     yield
     stop_scheduler()

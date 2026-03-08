@@ -18,7 +18,7 @@ class BlogPost(Base):
     cover_image_url: Mapped[str | None] = mapped_column(String(500))
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)))
     category: Mapped[str | None] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(20), default="draft")  # draft / published
+    status: Mapped[str] = mapped_column(String(20), default="draft")  # 草稿 / 已发布
     author_id: Mapped[int | None] = mapped_column(Integer)
     published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime.datetime] = mapped_column(

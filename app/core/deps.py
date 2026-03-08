@@ -29,7 +29,7 @@ async def get_current_user(
     if not user:
         raise HTTPException(status_code=401, detail="用户不存在")
 
-    # Sliding expiration: refresh token on each request
+    # 滑动过期：每次请求刷新令牌
     new_token = create_jwt_token(user.id, user.role)
     response.set_cookie(
         key=COOKIE_KEY,

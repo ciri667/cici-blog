@@ -41,7 +41,7 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     const end = ta.selectionEnd;
     const newValue = value.slice(0, start) + text + value.slice(end);
     onChange(newValue);
-    // Restore cursor position after React re-render
+    // React 重渲染后恢复光标位置
     requestAnimationFrame(() => {
       ta.selectionStart = ta.selectionEnd = start + text.length;
       ta.focus();

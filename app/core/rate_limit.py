@@ -3,7 +3,7 @@ from collections import defaultdict
 
 
 class RateLimiter:
-    """Simple in-memory rate limiter. Tracks failed attempts per key (IP)."""
+    """简单的内存限流器。按键（IP）追踪失败尝试次数。"""
 
     def __init__(self, max_attempts: int = 5, window_seconds: int = 900):
         self.max_attempts = max_attempts

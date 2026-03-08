@@ -46,7 +46,7 @@ export default function AdminAgentPage() {
       setSources(sourcesData);
       setStatus(statusData);
     } catch {
-      // ignore
+      // 忽略错误
     } finally {
       setLoading(false);
     }

@@ -1,4 +1,4 @@
-"""Content deduplication module."""
+"""内容去重模块。"""
 
 import logging
 from difflib import SequenceMatcher
@@ -22,14 +22,14 @@ async def deduplicate(
     articles: list[CollectedArticle],
     db: AsyncSession,
 ) -> list[CollectedArticle]:
-    """Remove articles that already exist in the database.
+    """移除数据库中已存在的文章。
 
-    Uses URL exact match + title fuzzy match (>85% similarity).
+    使用 URL 精确匹配 + 标题模糊匹配（>85% 相似度）。
     """
     if not articles:
         return []
 
-    # Get existing URLs and titles from DB
+    # 从数据库获取已有的 URL 和标题
     result = await db.execute(
         select(NewsArticle.original_url, NewsArticle.original_title)
     )
@@ -42,11 +42,11 @@ async def deduplicate(
         if not article.url or not article.title:
             continue
 
-        # URL exact match
+        # URL 精确匹配
         if article.url in existing_urls:
             continue
 
-        # Title fuzzy match
+        # 标题模糊匹配
         is_duplicate = False
         for existing_title in existing_titles:
             if _title_similarity(article.title, existing_title) > SIMILARITY_THRESHOLD:
@@ -55,7 +55,7 @@ async def deduplicate(
 
         if not is_duplicate:
             unique.append(article)
-            # Also check against articles in current batch
+            # 同时检查当前批次中的文章
             existing_titles.append(article.title)
             existing_urls.add(article.url)
 

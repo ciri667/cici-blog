@@ -1,4 +1,4 @@
-"""Agent admin API: RSS source management, agent status, manual trigger."""
+"""Agent 管理 API：RSS 源管理、Agent 状态、手动触发。"""
 
 import asyncio
 
@@ -21,7 +21,7 @@ from app.schemas.news import (
 router = APIRouter(prefix="/admin", tags=["agent-admin"])
 
 
-# --- RSS Sources CRUD ---
+# --- RSS 源增删改查 ---
 
 
 @router.get("/rss-sources", response_model=list[RssSourceResponse])
@@ -80,7 +80,7 @@ async def delete_rss_source(
     await db.commit()
 
 
-# --- Agent Status ---
+# --- Agent 状态 ---
 
 
 @router.get("/agent/status", response_model=AgentStatusResponse)
@@ -93,7 +93,7 @@ async def agent_status(
     )
     runs = result.scalars().all()
 
-    # Get next run time from scheduler
+    # 从调度器获取下次运行时间
     next_run = None
     try:
         from app.agent.scheduler import scheduler
@@ -110,7 +110,7 @@ async def agent_status(
     )
 
 
-# --- Manual Trigger ---
+# --- 手动触发 ---
 
 
 @router.post("/agent/trigger")

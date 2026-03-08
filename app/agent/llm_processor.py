@@ -1,4 +1,4 @@
-"""LLM processing module for summary, commentary, and tagging."""
+"""LLM 夋试模块：用于摘要、评论和打标。"""
 
 import json
 import logging
@@ -17,9 +17,9 @@ CATEGORIES = [
 
 
 async def generate_summary(title: str, content: str) -> str:
-    """Generate a 100-200 word Chinese summary using GPT-4o-mini."""
+    """使用 GPT-4o-mini 生成 100-200 字的中文摘要。"""
     if not settings.OPENAI_API_KEY:
-        logger.warning("OpenAI API key not configured, using original content as summary")
+        logger.warning("OpenAI API 密钥未配置，使用原始内容作为摘要")
         return content[:200] if content else title
 
     prompt = f"""请为以下科技新闻生成一段100-200字的中文摘要，概括核心内容。
@@ -48,14 +48,14 @@ async def generate_summary(title: str, content: str) -> str:
             resp.raise_for_status()
             return resp.json()["choices"][0]["message"]["content"].strip()
     except Exception as e:
-        logger.error(f"Summary generation failed: {e}")
+        logger.error(f"摘要生成失败: {e}")
         return content[:200] if content else title
 
 
 async def generate_commentary(title: str, content: str, summary: str) -> str:
-    """Generate a 500-1500 word Chinese commentary article using Claude API."""
+    """使用 Claude API 生成 500-1500 字的中文评论文章。"""
     if not settings.ANTHROPIC_API_KEY:
-        logger.warning("Anthropic API key not configured, skipping commentary")
+        logger.warning("Anthropic API 密钥未配置，跳过评论生成")
         return ""
 
     prompt = f"""你是一位资深科技评论员，请基于以下新闻撰写一篇500-1500字的中文评论文章。
@@ -94,12 +94,12 @@ async def generate_commentary(title: str, content: str, summary: str) -> str:
             data = resp.json()
             return data["content"][0]["text"].strip()
     except Exception as e:
-        logger.error(f"Commentary generation failed: {e}")
+        logger.error(f"评论生成失败: {e}")
         return ""
 
 
 async def classify_article(title: str, summary: str) -> tuple[str, list[str]]:
-    """Classify article into category and tags using GPT-4o-mini."""
+    """使用 GPT-4o-mini 对文章进行分类和打标。"""
     if not settings.OPENAI_API_KEY:
         return "其他", []
 
@@ -133,7 +133,7 @@ async def classify_article(title: str, summary: str) -> tuple[str, list[str]]:
             )
             resp.raise_for_status()
             text = resp.json()["choices"][0]["message"]["content"].strip()
-            # Parse JSON from response
+            # 从响应中解析 JSON
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0]
             data = json.loads(text)
@@ -143,5 +143,5 @@ async def classify_article(title: str, summary: str) -> tuple[str, list[str]]:
                 category = "其他"
             return category, tags[:5]
     except Exception as e:
-        logger.error(f"Classification failed: {e}")
+        logger.error(f"分类失败: {e}")
         return "其他", []

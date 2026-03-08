@@ -15,6 +15,7 @@ wheels/
 alembic/versions/*.py
 docs/
 .claude
+.codex
 openspec/
 
 # uv

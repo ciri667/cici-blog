@@ -20,7 +20,7 @@ class NewsArticle(Base):
     ai_commentary: Mapped[str | None] = mapped_column(Text)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String(50)))
     category: Mapped[str | None] = mapped_column(String(100))
-    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending / published
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # 待发布 / 已发布
     cover_image_url: Mapped[str | None] = mapped_column(String(500))
     published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
     fetched_at: Mapped[datetime.datetime] = mapped_column(
@@ -53,7 +53,7 @@ class AgentRun(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     finished_at: Mapped[datetime.datetime | None] = mapped_column(DateTime(timezone=True))
-    status: Mapped[str] = mapped_column(String(20), default="running")  # running / success / failed
+    status: Mapped[str] = mapped_column(String(20), default="running")  # 运行中 / 成功 / 失败
     articles_found: Mapped[int] = mapped_column(Integer, default=0)
     articles_created: Mapped[int] = mapped_column(Integer, default=0)
     error_log: Mapped[str | None] = mapped_column(Text)

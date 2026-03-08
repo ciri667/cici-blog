@@ -1,4 +1,4 @@
-"""RSS feed collector module."""
+"""RSS 订阅源收集模块。"""
 
 import logging
 from dataclasses import dataclass
@@ -20,9 +20,9 @@ class CollectedArticle:
 
 
 async def fetch_rss_feeds(sources: list[dict]) -> list[CollectedArticle]:
-    """Fetch articles from a list of RSS sources.
+    """从 RSS 源列表获取文章。
 
-    Each source dict should have: name, feed_url, category
+    每个源字典应包含：name, feed_url, category
     """
     articles: list[CollectedArticle] = []
 
@@ -33,7 +33,7 @@ async def fetch_rss_feeds(sources: list[dict]) -> list[CollectedArticle]:
                 resp.raise_for_status()
                 feed = feedparser.parse(resp.text)
 
-                for entry in feed.entries[:20]:  # Limit per source
+                for entry in feed.entries[:20]:  # 每个源限制数量
                     pub_date = None
                     if hasattr(entry, "published_parsed") and entry.published_parsed:
                         pub_date = datetime(*entry.published_parsed[:6], tzinfo=timezone.utc)

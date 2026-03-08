@@ -13,19 +13,19 @@ export default function EditPostPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    // We need to find the post by ID. The API uses slug for GET,
-    // so we fetch all posts and find by ID, or use a dedicated approach.
-    // For simplicity, we'll add a query to find by listing.
+    // 需要通过 ID 查找文章。API 使用 slug 进行 GET，
+    // 所以我们获取所有文章并通过 ID 查找，或使用专门的方法。
+    // 为简单起见，我们通过列表查询来查找。
     async function loadPost() {
       try {
-        // Fetch drafts and published to find by id
+        // 获取草稿和已发布的文章来通过 ID 查找
         for (const status of ["draft", "published"]) {
           const data = await apiFetch<{ items: Post[] }>(
             `/posts?status=${status}&page_size=100`,
           );
           const found = data.items.find((p) => p.id === Number(params.id));
           if (found) {
-            // Fetch full post with content by slug
+            // 通过 slug 获取完整文章内容
             const full = await apiFetch<Post>(`/posts/${found.slug}`);
             setPost(full);
             return;

@@ -35,7 +35,7 @@ async def _find_or_create_user(
     avatar_url: str | None,
     is_admin: bool,
 ) -> User:
-    # Check if OAuth account already exists
+    # 检查 OAuth 账号是否已存在
     result = await db.execute(
         select(OAuthAccount).where(
             OAuthAccount.provider == provider,
@@ -65,7 +65,7 @@ async def _find_or_create_user(
         await db.delete(oauth_account)
         await db.flush()
 
-    # Check if user with same email exists (account linking)
+    # 检查相同邮箱的用户是否存在（账号关联）
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()
 
@@ -86,7 +86,7 @@ async def _find_or_create_user(
         if not user.avatar_url:
             user.avatar_url = avatar_url
 
-    # Link OAuth account
+    # 关联 OAuth 账号
     result = await db.execute(
         select(OAuthAccount).where(
             OAuthAccount.user_id == user.id,
@@ -157,7 +157,7 @@ async def google_callback(
     redirect_uri = f"{settings.CORS_ORIGINS.split(',')[0]}/auth/google/callback"
 
     async with httpx.AsyncClient() as client:
-        # Exchange code for token
+        # 用授权码换取令牌
         token_resp = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
@@ -173,7 +173,7 @@ async def google_callback(
 
         tokens = token_resp.json()
 
-        # Get user info
+        # 获取用户信息
         userinfo_resp = await client.get(
             "https://www.googleapis.com/oauth2/v2/userinfo",
             headers={"Authorization": f"Bearer {tokens['access_token']}"},
@@ -221,7 +221,7 @@ async def github_callback(
     db: AsyncSession = Depends(get_db),
 ):
     async with httpx.AsyncClient() as client:
-        # Exchange code for token
+        # 用授权码换取令牌
         token_resp = await client.post(
             "https://github.com/login/oauth/access_token",
             json={
@@ -239,14 +239,14 @@ async def github_callback(
         if not access_token:
             raise HTTPException(status_code=400, detail="GitHub 授权失败")
 
-        # Get user info
+        # 获取用户信息
         user_resp = await client.get(
             "https://api.github.com/user",
             headers={"Authorization": f"Bearer {access_token}"},
         )
         github_user = user_resp.json()
 
-        # Get primary email
+        # 获取主邮箱
         email_resp = await client.get(
             "https://api.github.com/user/emails",
             headers={"Authorization": f"Bearer {access_token}"},

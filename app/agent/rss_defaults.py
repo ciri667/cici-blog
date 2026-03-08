@@ -1,4 +1,4 @@
-"""Default RSS sources for initial setup."""
+"""初始设置的默认 RSS 源。"""
 
 DEFAULT_RSS_SOURCES = [
     {
