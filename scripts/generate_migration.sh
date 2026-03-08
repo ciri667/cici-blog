@@ -16,6 +16,9 @@ fi
 
 cd "$(dirname "$0")/.."
 
+echo "检查数据库是否存在..."
+uv run python scripts/ensure_database.py
+
 echo "正在生成迁移脚本: $1"
 uv run alembic revision --autogenerate -m "$1"
 echo "迁移脚本已生成，请检查 alembic/versions/ 目录"

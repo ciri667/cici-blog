@@ -9,6 +9,10 @@ if "%~1"=="" (
 
 cd /d "%~dp0.."
 
+echo Checking database existence...
+uv run python scripts/ensure_database.py
+if errorlevel 1 exit /b %errorlevel%
+
 echo Generating migration script: %~1
 uv run alembic revision --autogenerate -m "%~1"
 if errorlevel 1 exit /b %errorlevel%

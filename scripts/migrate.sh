@@ -8,9 +8,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "检查数据库是否存在..."
-uv run python scripts/ensure_database.py
-
 echo "正在应用数据库迁移..."
 uv run alembic upgrade head
 echo "迁移完成"
