@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "cici-blog-backend"
+    PROJECT_NAME: str = "cici-blog"
     API_V1_PREFIX: str = "/api/v1"
 
     # Database - 必须通过环境变量设置
