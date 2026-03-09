@@ -76,7 +76,6 @@ async def _find_or_create_user(
     if not user:
         user = User(
             email=email,
-            display_name=display_name,
             avatar_url=avatar_url,
             preferred_provider=provider,
             role="admin" if is_admin else "visitor",
