@@ -1,6 +1,7 @@
 """内容去重模块。"""
 
 import logging
+from datetime import datetime, timedelta, timezone
 from difflib import SequenceMatcher
 
 from sqlalchemy import select
@@ -12,6 +13,9 @@ from app.models.news import NewsArticle
 logger = logging.getLogger(__name__)
 
 SIMILARITY_THRESHOLD = 0.85
+
+# 标题模糊匹配的时间窗口（天），减少内存和计算开销
+TITLE_LOOKBACK_DAYS = 30
 
 
 def _title_similarity(a: str, b: str) -> float:
@@ -25,17 +29,25 @@ async def deduplicate(
     """移除数据库中已存在的文章。
 
     使用 URL 精确匹配 + 标题模糊匹配（>85% 相似度）。
+    只查询最近 30 天的文章标题进行模糊匹配。
     """
     if not articles:
         return []
 
-    # 从数据库获取已有的 URL 和标题
+    # 计算时间窗口
+    cutoff = datetime.now(timezone.utc) - timedelta(days=TITLE_LOOKBACK_DAYS)
+
+    # 从数据库获取已有的 URL（全量，用于精确匹配）
+    result = await db.execute(select(NewsArticle.original_url))
+    existing_urls = {row[0] for row in result.all()}
+
+    # 只获取最近 30 天的标题用于模糊匹配
     result = await db.execute(
-        select(NewsArticle.original_url, NewsArticle.original_title)
+        select(NewsArticle.original_title).where(
+            NewsArticle.created_at >= cutoff
+        )
     )
-    existing = result.all()
-    existing_urls = {row[0] for row in existing}
-    existing_titles = [row[1] for row in existing]
+    existing_titles = [row[0] for row in result.all()]
 
     unique: list[CollectedArticle] = []
     for article in articles:

@@ -18,6 +18,36 @@ from app.models.news import AgentRun, NewsArticle, RssSource
 
 logger = logging.getLogger(__name__)
 
+# 每次流水线最多处理的文章数，防止 API 成本失控
+MAX_ARTICLES_PER_RUN = 100
+
+# slug 生成最大尝试次数，防止无限循环
+MAX_SLUG_ATTEMPTS = 1000
+
+
+def _safe_error_message(e: Exception) -> str:
+    """返回脱敏后的错误消息，防止敏感信息泄露。"""
+    import re
+
+    error_type = type(e).__name__
+    msg = str(e)
+
+    # 脱敏数据库连接字符串
+    msg = re.sub(
+        r"(postgresql|mysql|mongodb)://[^\s]+",
+        "[DATABASE_URL_REDACTED]",
+        msg,
+    )
+    # 脱敏常见密钥
+    msg = re.sub(
+        r"(api[_-]?key|secret|password|token|auth)[=:]\S+",
+        r"\1=[REDACTED]",
+        msg,
+        flags=re.IGNORECASE,
+    )
+
+    return f"{error_type}: {msg[:500]}"
+
 # 使用锁保护全局状态，防止并发问题
 _running = False
 _lock = asyncio.Lock()
@@ -36,15 +66,17 @@ def _slugify(text: str) -> str:
 
 async def _unique_slug(db: AsyncSession, base_slug: str) -> str:
     slug = base_slug
-    suffix = 0
-    while True:
+    for suffix in range(MAX_SLUG_ATTEMPTS):
         result = await db.execute(
             select(NewsArticle.id).where(NewsArticle.slug == slug)
         )
         if result.scalar_one_or_none() is None:
             return slug
-        suffix += 1
-        slug = f"{base_slug}-{suffix}"
+        slug = f"{base_slug}-{suffix + 1}"
+    # 超过上限，使用时间戳作为最后手段
+    import time
+
+    return f"{base_slug}-{int(time.time())}"
 
 
 async def run_pipeline() -> None:
@@ -90,6 +122,9 @@ async def run_pipeline() -> None:
 
             # 阶段 2：去重
             unique_articles = await deduplicate(all_articles, db)
+
+            # 限制处理数量，防止 API 成本失控
+            unique_articles = unique_articles[:MAX_ARTICLES_PER_RUN]
 
             # 阶段 3 和 4：AI 处理并存储
             created_count = 0
@@ -158,7 +193,7 @@ async def run_pipeline() -> None:
                 error_run = await error_db.get(AgentRun, run.id)
                 if error_run:
                     error_run.status = "failed"
-                    error_run.error_log = str(e)
+                    error_run.error_log = _safe_error_message(e)
                     error_run.finished_at = datetime.now(timezone.utc)
                     await error_db.commit()
             raise

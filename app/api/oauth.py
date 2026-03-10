@@ -59,8 +59,8 @@ async def _find_or_create_user(
             oauth_account.provider_avatar_url = avatar_url
             oauth_account.last_login_at = datetime.now(timezone.utc)
             linked_user.preferred_provider = provider
-            if not linked_user.display_name:
-                linked_user.display_name = display_name
+            # if not linked_user.display_name:
+            #     linked_user.display_name = display_name
             if not linked_user.avatar_url:
                 linked_user.avatar_url = avatar_url
             await db.commit()
